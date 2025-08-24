@@ -30,17 +30,11 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <div id="comments-disabled-message" class="hidden p-4 sm:p-6 max-w-2xl mx-auto text-center">
-        <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
-            <p>현재 댓글 기능이 비활성화되었습니다.</p>
-        </div>
-    </div>
-
     <div id="app" class="p-4 sm:p-6 max-w-2xl mx-auto">
         <div id="admin-controls" class="hidden mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
             <span class="font-semibold text-gray-700 text-sm">관리자 모드</span>
             <div class="flex space-x-2">
-                <button id="toggle-visibility-btn" class="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded-md hover:bg-yellow-600 transition-colors">댓글판 숨기기</button>
+                <button id="toggle-visibility-btn" class="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded-md hover:bg-yellow-600 transition-colors">댓글 기록 숨기기</button>
                 <button id="export-reset-btn" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-md hover:bg-red-600 transition-colors">데이터 저장(CSV) 및 초기화</button>
             </div>
         </div>
@@ -56,6 +50,13 @@
             <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
             <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
         </form>
+
+        <!-- NEW: 댓글 기록 숨김 메시지 -->
+        <div id="comments-hidden-message" class="hidden p-4 text-center">
+            <div class="p-4 bg-gray-100 text-gray-600 rounded-lg">
+                <p>댓글 기록이 현재 비공개입니다.</p>
+            </div>
+        </div>
 
         <div id="comments-container" class="space-y-4">
             <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
@@ -82,7 +83,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const appDiv = document.getElementById('app');
         const studentIdInput = document.getElementById('student-id');
         const studentNameInput = document.getElementById('student-name');
         const commentInput = document.getElementById('comment-input');
@@ -95,7 +95,7 @@
         const adminControlsDiv = document.getElementById('admin-controls');
         const toggleVisibilityBtn = document.getElementById('toggle-visibility-btn');
         const exportResetBtn = document.getElementById('export-reset-btn');
-        const commentsDisabledMessage = document.getElementById('comments-disabled-message');
+        const commentsHiddenMessage = document.getElementById('comments-hidden-message');
         
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
@@ -163,7 +163,7 @@
         };
 
         const renderComments = (comments) => {
-            commentsContainer.innerHTML = ''; // Clear previous comments
+            commentsContainer.innerHTML = '';
             commentsContainer.appendChild(loadingDiv);
             commentsContainer.appendChild(noCommentsDiv);
             loadingDiv.style.display = 'none';
@@ -225,8 +225,8 @@
 
         async function toggleVisibility() {
             const docSnapshot = await getDoc(settingsDoc);
-            const currentVisibility = docSnapshot.exists() ? docSnapshot.data().isVisible : true;
-            await setDoc(settingsDoc, { isVisible: !currentVisibility });
+            const currentVisibility = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
+            await setDoc(settingsDoc, { isRecordVisible: !currentVisibility });
         }
 
         async function exportAndReset() {
@@ -256,7 +256,6 @@
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             
-            // --- UPDATE: 파일 이름을 현재 날짜와 시간으로 설정 ---
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -287,18 +286,27 @@
             if (savedName) studentNameInput.value = savedName;
             if (savedRandomName) showWelcomeMessage(savedRandomName);
             if (isAdmin) {
+                // --- UPDATE: 관리자용 탭 제목 변경 ---
+                document.title = '댓글 기능[관리자]';
                 adminControlsDiv.classList.remove('hidden');
                 toggleVisibilityBtn.addEventListener('click', toggleVisibility);
-                exportResetBtn.addEventListener('click', exportAndReset);
+                exportResetBtn.addEventListener('click', exportResetBtn.textContent = '데이터 저장(CSV) 및 초기화', exportAndReset);
             }
         });
 
+        // --- UPDATE: 보이기/숨기기 로직 수정 ---
         onSnapshot(settingsDoc, (docSnapshot) => {
-            const isVisible = docSnapshot.exists() ? docSnapshot.data().isVisible : true;
-            appDiv.classList.toggle('hidden', !isVisible);
-            commentsDisabledMessage.classList.toggle('hidden', isVisible);
+            const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
+            
             if (isAdmin) {
-                toggleVisibilityBtn.textContent = isVisible ? '댓글판 숨기기' : '댓글판 보이기';
+                // 관리자는 항상 모든 것을 볼 수 있음
+                commentsContainer.classList.remove('hidden');
+                commentsHiddenMessage.classList.add('hidden');
+                toggleVisibilityBtn.textContent = isRecordVisible ? '댓글 기록 숨기기' : '댓글 기록 보이기';
+            } else {
+                // 사용자는 설정에 따라 댓글 목록만 보거나 숨김
+                commentsContainer.classList.toggle('hidden', !isRecordVisible);
+                commentsHiddenMessage.classList.toggle('hidden', isRecordVisible);
             }
         });
 
