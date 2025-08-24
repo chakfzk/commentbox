@@ -51,7 +51,6 @@
             <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
         </form>
 
-        <!-- NEW: 댓글 기록 숨김 메시지 -->
         <div id="comments-hidden-message" class="hidden p-4 text-center">
             <div class="p-4 bg-gray-100 text-gray-600 rounded-lg">
                 <p>댓글 기록이 현재 비공개입니다.</p>
@@ -285,26 +284,26 @@
             if (savedId) studentIdInput.value = savedId;
             if (savedName) studentNameInput.value = savedName;
             if (savedRandomName) showWelcomeMessage(savedRandomName);
+            
+            // --- FIX: 관리자 모드 확인 및 UI 설정 로직 수정 ---
             if (isAdmin) {
-                // --- UPDATE: 관리자용 탭 제목 변경 ---
                 document.title = '댓글 기능[관리자]';
                 adminControlsDiv.classList.remove('hidden');
                 toggleVisibilityBtn.addEventListener('click', toggleVisibility);
-                exportResetBtn.addEventListener('click', exportResetBtn.textContent = '데이터 저장(CSV) 및 초기화', exportAndReset);
+                exportResetBtn.addEventListener('click', exportAndReset);
+            } else {
+                adminControlsDiv.classList.add('hidden');
             }
         });
 
-        // --- UPDATE: 보이기/숨기기 로직 수정 ---
         onSnapshot(settingsDoc, (docSnapshot) => {
             const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
             
             if (isAdmin) {
-                // 관리자는 항상 모든 것을 볼 수 있음
                 commentsContainer.classList.remove('hidden');
                 commentsHiddenMessage.classList.add('hidden');
                 toggleVisibilityBtn.textContent = isRecordVisible ? '댓글 기록 숨기기' : '댓글 기록 보이기';
             } else {
-                // 사용자는 설정에 따라 댓글 목록만 보거나 숨김
                 commentsContainer.classList.toggle('hidden', !isRecordVisible);
                 commentsHiddenMessage.classList.toggle('hidden', isRecordVisible);
             }
