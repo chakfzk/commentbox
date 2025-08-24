@@ -25,7 +25,7 @@
             font-size: 12px;
             white-space: nowrap;
             z-index: 100;
-            pointer-events: none; /* 툴팁 자체에는 마우스 이벤트가 없도록 설정 */
+            pointer-events: none;
             transition: opacity 0.2s;
         }
     </style>
@@ -67,10 +67,10 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // --- NEW: doc, deleteDoc import 추가 ---
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- 1. Firebase 설정 (사용자 정보로 교체 완료) ---
         const firebaseConfig = {
             apiKey: "AIzaSyA7ztbUE3cgak7lIlwO-U4eQTze9g0ykRQ",
             authDomain: "mynotioncomment.firebaseapp.com",
@@ -80,25 +80,11 @@
             appId: "1:708305128145:web:dc6d5bffb92a4e71be53f0"
         };
 
-        // --- Firebase 설정값이 올바른지 확인하는 코드 ---
-        if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = `
-                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
-                    <p class="font-bold">설정 오류</p>
-                    <p>Firebase 설정이 완료되지 않았습니다. 코드의 'firebaseConfig' 부분을 실제 프로젝트 정보로 교체해주세요.</p>
-                </div>
-            `;
-            throw new Error("Firebase config is not set. Please replace placeholder values.");
-        }
-
-
         const appId = 'default-comment-app';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- UI 요소 ---
         const studentIdInput = document.getElementById('student-id');
         const studentNameInput = document.getElementById('student-name');
         const commentInput = document.getElementById('comment-input');
@@ -107,8 +93,6 @@
         const loadingDiv = document.getElementById('loading');
         const noCommentsDiv = document.getElementById('no-comments');
         const submitButton = document.getElementById('submit-button');
-        const submitText = document.getElementById('submit-text');
-        const submitSpinner = document.getElementById('submit-spinner');
         
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
@@ -129,9 +113,7 @@
             }
         });
 
-        signInAnonymously(auth).catch(error => {
-            console.error("익명 로그인 실패:", error);
-        });
+        signInAnonymously(auth).catch(error => console.error("익명 로그인 실패:", error));
 
         const commentsCol = collection(db, `/artifacts/${appId}/public/data/comments`);
 
@@ -140,9 +122,6 @@
             if (!currentUserId) { console.error("인증 정보 없음"); return; }
 
             submitButton.disabled = true;
-            submitText.classList.add('hidden');
-            submitSpinner.classList.remove('hidden');
-
             try {
                 await addDoc(commentsCol, { text, studentId, name, createdAt: serverTimestamp(), authorId: currentUserId });
                 commentInput.value = '';
@@ -152,8 +131,16 @@
                 console.error("댓글 추가 오류: ", error);
             } finally {
                 submitButton.disabled = false;
-                submitText.classList.remove('hidden');
-                submitSpinner.classList.add('hidden');
+            }
+        };
+
+        // --- NEW: 댓글 삭제 함수 ---
+        const deleteComment = async (commentId) => {
+            try {
+                const commentDocRef = doc(db, `/artifacts/${appId}/public/data/comments`, commentId);
+                await deleteDoc(commentDocRef);
+            } catch (error) {
+                console.error("댓글 삭제 오류: ", error);
             }
         };
 
@@ -166,18 +153,17 @@
                 renderComments(comments);
             }, (error) => {
                 console.error("댓글 수신 오류: ", error);
-                loadingDiv.innerHTML = '<p class="text-red-500">댓글을 불러오는 데 실패했습니다.</p>';
             });
         };
 
         const renderComments = (comments) => {
-            const oldComments = commentsContainer.querySelectorAll('.comment-item');
-            oldComments.forEach(el => el.remove());
+            commentsContainer.querySelectorAll('.comment-item').forEach(el => el.remove());
             noCommentsDiv.classList.toggle('hidden', comments.length > 0);
 
             comments.forEach(comment => {
                 const commentElement = document.createElement('div');
-                commentElement.className = 'comment-item bg-white p-4 rounded-lg shadow-sm border border-gray-200';
+                // --- UPDATE: relative 클래스 추가 ---
+                commentElement.className = 'comment-item bg-white p-4 rounded-lg shadow-sm border border-gray-200 relative';
                 
                 const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
                 const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString('ko-KR') : '';
@@ -192,6 +178,7 @@
                 commentsContainer.appendChild(commentElement);
 
                 if (isAdmin) {
+                    // 툴팁 기능
                     let tooltipElement = null;
                     commentElement.style.cursor = 'help';
                     commentElement.addEventListener('mouseenter', (e) => {
@@ -202,15 +189,20 @@
                         tooltipElement.style.left = `${e.pageX + 10}px`;
                         tooltipElement.style.top = `${e.pageY - 28}px`;
                     });
-                    commentElement.addEventListener('mouseleave', () => {
-                        tooltipElement?.remove();
-                    });
-                     commentElement.addEventListener('mousemove', (e) => {
+                    commentElement.addEventListener('mouseleave', () => tooltipElement?.remove());
+                    commentElement.addEventListener('mousemove', (e) => {
                         if (tooltipElement) {
                             tooltipElement.style.left = `${e.pageX + 10}px`;
                             tooltipElement.style.top = `${e.pageY - 28}px`;
                         }
                     });
+
+                    // --- NEW: 삭제 버튼 생성 및 이벤트 추가 ---
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = '삭제';
+                    deleteButton.className = 'absolute top-3 right-3 text-xs bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2';
+                    deleteButton.onclick = () => deleteComment(comment.id);
+                    commentElement.appendChild(deleteButton);
                 }
             });
         };
