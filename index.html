@@ -289,8 +289,10 @@
                 document.title = '댓글 기능[관리자]';
                 adminControlsDiv.classList.remove('hidden');
                 toggleVisibilityBtn.addEventListener('click', toggleVisibility);
-                // --- FIX: 잘못된 코드 수정 ---
                 exportResetBtn.addEventListener('click', exportAndReset);
+            } else {
+                // --- FIX: 관리자 메뉴가 보이지 않도록 명시적으로 숨김 ---
+                adminControlsDiv.classList.add('hidden');
             }
         });
 
