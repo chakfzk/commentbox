@@ -4,44 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>댓글 기능</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts (Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* 기본 폰트 설정 */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* 스크롤바 디자인 */
+        body { font-family: 'Inter', sans-serif; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-        /* --- NEW: 작성자 정보 툴팁 스타일 --- */
-        .comment-item {
-            position: relative; /* 툴팁 위치의 기준점 */
-        }
-        .comment-item[data-author]:hover::after {
-            content: attr(data-author); /* data-author 속성의 값을 내용으로 사용 */
+        /* --- 관리자용 툴팁 스타일 (JS로 제어) --- */
+        .admin-tooltip {
             position: absolute;
-            bottom: 100%; /* 요소의 위쪽에 표시 */
-            left: 1rem; /* 왼쪽에서 약간 띄움 */
-            margin-bottom: 5px;
             background-color: #333;
             color: #fff;
             padding: 6px 10px;
             border-radius: 4px;
             font-size: 12px;
-            white-space: nowrap; /* 툴팁 내용이 줄바꿈되지 않도록 */
-            z-index: 10;
-            /* 부드러운 표시를 위한 전환 효과 */
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.2s, visibility 0.2s;
+            white-space: nowrap;
+            z-index: 100;
+            pointer-events: none; /* 툴팁 자체에는 마우스 이벤트가 없도록 설정 */
+            transition: opacity 0.2s;
         }
     </style>
 </head>
@@ -50,9 +35,7 @@
     <div id="app" class="p-4 sm:p-6 max-w-2xl mx-auto">
         <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글</h1>
 
-        <!-- 댓글 입력 폼 -->
         <form id="comment-form" class="mb-6">
-            <!-- NEW: 학번, 이름 입력 필드 추가 -->
             <div class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
                 <div class="w-full sm:w-1/2 mb-2 sm:mb-0">
                     <label for="student-id" class="sr-only">학번</label>
@@ -76,47 +59,69 @@
             </button>
         </form>
 
-        <!-- 댓글 목록 -->
         <div id="comments-container" class="space-y-4">
             <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
             <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다. 첫 댓글을 남겨보세요!</p></div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- 1. Firebase 설정 (사용자 정보로 교체 완료) ---
         const firebaseConfig = {
-  apiKey: "AIzaSyA7ztbUE3cgak7lIlwO-U4eQTze9g0ykRQ",
-  authDomain: "mynotioncomment.firebaseapp.com",
-  projectId: "mynotioncomment",
-  storageBucket: "mynotioncomment.firebasestorage.app",
-  messagingSenderId: "708305128145",
-  appId: "1:708305128145:web:dc6d5bffb92a4e71be53f0"
-};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-comment-app';
+            apiKey: "AIzaSyA7ztbUE3cgak7lIlwO-U4eQTze9g0ykRQ",
+            authDomain: "mynotioncomment.firebaseapp.com",
+            projectId: "mynotioncomment",
+            storageBucket: "mynotioncomment.appspot.com",
+            messagingSenderId: "708305128145",
+            appId: "1:708305128145:web:dc6d5bffb92a4e71be53f0"
+        };
 
+        // --- Firebase 설정값이 올바른지 확인하는 코드 ---
+        if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
+            const appDiv = document.getElementById('app');
+            appDiv.innerHTML = `
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
+                    <p class="font-bold">설정 오류</p>
+                    <p>Firebase 설정이 완료되지 않았습니다. 코드의 'firebaseConfig' 부분을 실제 프로젝트 정보로 교체해주세요.</p>
+                </div>
+            `;
+            throw new Error("Firebase config is not set. Please replace placeholder values.");
+        }
+
+
+        const appId = 'default-comment-app';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         // --- UI 요소 ---
-        const commentForm = document.getElementById('comment-form');
-        const studentIdInput = document.getElementById('student-id'); // NEW
-        const studentNameInput = document.getElementById('student-name'); // NEW
+        const studentIdInput = document.getElementById('student-id');
+        const studentNameInput = document.getElementById('student-name');
         const commentInput = document.getElementById('comment-input');
+        const commentForm = document.getElementById('comment-form');
         const commentsContainer = document.getElementById('comments-container');
         const loadingDiv = document.getElementById('loading');
         const noCommentsDiv = document.getElementById('no-comments');
         const submitButton = document.getElementById('submit-button');
         const submitText = document.getElementById('submit-text');
         const submitSpinner = document.getElementById('submit-spinner');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
 
         let currentUserId = null;
-        
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedId = localStorage.getItem('commentAppStudentId');
+            const savedName = localStorage.getItem('commentAppStudentName');
+            if (savedId) studentIdInput.value = savedId;
+            if (savedName) studentNameInput.value = savedName;
+        });
+
         onAuthStateChanged(auth, user => {
             if (user) {
                 currentUserId = user.uid;
@@ -124,52 +129,27 @@
             }
         });
 
-        const signIn = async () => {
-            try {
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Error signing in:", error);
-            }
-        };
+        signInAnonymously(auth).catch(error => {
+            console.error("익명 로그인 실패:", error);
+        });
 
-        const commentsCollectionPath = `/artifacts/${appId}/public/data/comments`;
-        const commentsCol = collection(db, commentsCollectionPath);
+        const commentsCol = collection(db, `/artifacts/${appId}/public/data/comments`);
 
-        // --- UPDATE: 댓글 추가 함수 ---
         const addComment = async (studentId, name, text) => {
-            // 입력 값 유효성 검사
-            if (!studentId.trim() || !name.trim() || !text.trim()) {
-                console.warn("모든 필드를 입력해주세요.");
-                return;
-            }
-            if (!currentUserId) {
-                console.error("인증 정보가 없습니다. 잠시 후 다시 시도해주세요.");
-                return;
-            }
+            if (!studentId.trim() || !name.trim() || !text.trim()) return;
+            if (!currentUserId) { console.error("인증 정보 없음"); return; }
 
             submitButton.disabled = true;
             submitText.classList.add('hidden');
             submitSpinner.classList.remove('hidden');
 
             try {
-                await addDoc(commentsCol, {
-                    text: text,
-                    studentId: studentId, // 학번 저장
-                    name: name,           // 이름 저장
-                    createdAt: serverTimestamp(),
-                    authorId: currentUserId
-                });
-                // 입력 필드 초기화
+                await addDoc(commentsCol, { text, studentId, name, createdAt: serverTimestamp(), authorId: currentUserId });
                 commentInput.value = '';
-                studentIdInput.value = '';
-                studentNameInput.value = '';
+                localStorage.setItem('commentAppStudentId', studentId);
+                localStorage.setItem('commentAppStudentName', name);
             } catch (error) {
-                console.error("Error adding comment: ", error);
+                console.error("댓글 추가 오류: ", error);
             } finally {
                 submitButton.disabled = false;
                 submitText.classList.remove('hidden');
@@ -179,63 +159,70 @@
 
         const listenForComments = () => {
             const q = query(commentsCol);
-            onSnapshot(q, (querySnapshot) => {
+            onSnapshot(q, (snapshot) => {
                 loadingDiv.style.display = 'none';
-                const comments = [];
-                querySnapshot.forEach((doc) => {
-                    comments.push({ id: doc.id, ...doc.data() });
-                });
+                const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 comments.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
                 renderComments(comments);
             }, (error) => {
-                console.error("Error listening for comments: ", error);
+                console.error("댓글 수신 오류: ", error);
                 loadingDiv.innerHTML = '<p class="text-red-500">댓글을 불러오는 데 실패했습니다.</p>';
             });
         };
 
-        // --- UPDATE: 댓글 렌더링 함수 ---
         const renderComments = (comments) => {
-            commentsContainer.innerHTML = ''; // 기존 댓글 비우기 (로딩/빈 메시지 포함)
-            commentsContainer.appendChild(loadingDiv);
-            commentsContainer.appendChild(noCommentsDiv);
-            loadingDiv.style.display = 'none';
+            const oldComments = commentsContainer.querySelectorAll('.comment-item');
+            oldComments.forEach(el => el.remove());
+            noCommentsDiv.classList.toggle('hidden', comments.length > 0);
 
-            if (comments.length === 0) {
-                noCommentsDiv.classList.remove('hidden');
-            } else {
-                noCommentsDiv.classList.add('hidden');
-                comments.forEach(comment => {
-                    const commentElement = document.createElement('div');
-                    commentElement.classList.add('comment-item', 'bg-white', 'p-4', 'rounded-lg', 'shadow-sm', 'border', 'border-gray-200');
+            comments.forEach(comment => {
+                const commentElement = document.createElement('div');
+                commentElement.className = 'comment-item bg-white p-4 rounded-lg shadow-sm border border-gray-200';
+                
+                const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
+                const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString('ko-KR') : '';
 
-                    // NEW: 마우스 오버 시 보일 작성자 정보를 data-author 속성에 저장
-                    const authorInfo = `${comment.studentId || '학번없음'} ${comment.name || '이름없음'}`;
-                    commentElement.setAttribute('data-author', authorInfo);
+                commentElement.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <p class="text-gray-800 whitespace-pre-wrap flex-1 pr-4">${escapeHTML(comment.text)}</p>
+                        <span class="text-sm font-medium text-gray-500">익명</span>
+                    </div>
+                    <div class="text-right text-xs text-gray-400 mt-2">${date}</div>
+                `;
+                commentsContainer.appendChild(commentElement);
 
-                    const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString('ko-KR') : '방금 전';
-                    
-                    commentElement.innerHTML = `
-                        <div class="flex items-start justify-between">
-                            <p class="text-gray-800 whitespace-pre-wrap flex-1 pr-4">${escapeHTML(comment.text)}</p>
-                            <span class="text-sm font-medium text-gray-500">익명</span>
-                        </div>
-                        <div class="text-right text-xs text-gray-400 mt-2">${date}</div>
-                    `;
-                    commentsContainer.appendChild(commentElement);
-                });
-            }
+                if (isAdmin) {
+                    let tooltipElement = null;
+                    commentElement.style.cursor = 'help';
+                    commentElement.addEventListener('mouseenter', (e) => {
+                        tooltipElement = document.createElement('div');
+                        tooltipElement.className = 'admin-tooltip';
+                        tooltipElement.textContent = authorInfo;
+                        document.body.appendChild(tooltipElement);
+                        tooltipElement.style.left = `${e.pageX + 10}px`;
+                        tooltipElement.style.top = `${e.pageY - 28}px`;
+                    });
+                    commentElement.addEventListener('mouseleave', () => {
+                        tooltipElement?.remove();
+                    });
+                     commentElement.addEventListener('mousemove', (e) => {
+                        if (tooltipElement) {
+                            tooltipElement.style.left = `${e.pageX + 10}px`;
+                            tooltipElement.style.top = `${e.pageY - 28}px`;
+                        }
+                    });
+                }
+            });
         };
 
         function escapeHTML(str) {
-            return str.replace(/[&<>"']/g, match => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[match]));
+            return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
         }
 
         commentForm.addEventListener('submit', (e) => {
             e.preventDefault();
             addComment(studentIdInput.value, studentNameInput.value, commentInput.value);
         });
-
-        signIn();
     </script>
 </body>
 </html>
