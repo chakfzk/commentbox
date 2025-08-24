@@ -285,14 +285,12 @@
             if (savedName) studentNameInput.value = savedName;
             if (savedRandomName) showWelcomeMessage(savedRandomName);
             
-            // --- FIX: 관리자 모드 확인 및 UI 설정 로직 수정 ---
             if (isAdmin) {
                 document.title = '댓글 기능[관리자]';
                 adminControlsDiv.classList.remove('hidden');
                 toggleVisibilityBtn.addEventListener('click', toggleVisibility);
+                // --- FIX: 잘못된 코드 수정 ---
                 exportResetBtn.addEventListener('click', exportAndReset);
-            } else {
-                adminControlsDiv.classList.add('hidden');
             }
         });
 
