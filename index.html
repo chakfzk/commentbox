@@ -14,8 +14,6 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
-
-        /* --- 관리자용 툴팁 스타일 (JS로 제어) --- */
         .admin-tooltip {
             position: absolute;
             background-color: #333;
@@ -36,7 +34,11 @@
         <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글</h1>
 
         <form id="comment-form" class="mb-6">
-            <div class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
+            <!-- 닉네임 환영 메시지 영역 -->
+            <div id="welcome-message" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
+            
+            <!-- 학번/이름 입력 영역 -->
+            <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
                 <div class="w-full sm:w-1/2 mb-2 sm:mb-0">
                     <label for="student-id" class="sr-only">학번</label>
                     <input type="text" id="student-id" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="학번" required>
@@ -46,16 +48,13 @@
                     <input type="text" id="student-name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
                 </div>
             </div>
+
             <div class="mb-2">
                 <label for="comment-input" class="sr-only">댓글 내용</label>
                 <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition" placeholder="댓글을 입력하세요..." required></textarea>
             </div>
             <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 flex items-center justify-center">
                 <span id="submit-text">댓글 달기</span>
-                <svg id="submit-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
             </button>
         </form>
 
@@ -68,7 +67,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // --- NEW: doc, deleteDoc import 추가 ---
         import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -93,17 +91,64 @@
         const loadingDiv = document.getElementById('loading');
         const noCommentsDiv = document.getElementById('no-comments');
         const submitButton = document.getElementById('submit-button');
+        const welcomeMessageDiv = document.getElementById('welcome-message');
+        const userInfoInputsDiv = document.getElementById('user-info-inputs');
         
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
 
         let currentUserId = null;
 
+        // --- UPDATE: 닉네임 목록 대폭 확장 (형용사 20개 * 명사 20개 = 400개 조합) ---
+        const adjectives = [
+            "친절한", "용감한", "현명한", "재빠른", "고요한", "빛나는", "행복한", "즐거운", 
+            "성실한", "신비한", "똑똑한", "상냥한", "유쾌한", "위대한", "평화로운", "자유로운", 
+            "엉뚱한", "긍정적인", "창의적인", "부지런한"
+        ];
+        const nouns = [
+            "호랑이", "사자", "토끼", "거북이", "돌고래", "독수리", "다람쥐", "고양이", 
+            "강아지", "유니콘", "기린", "코알라", "반딧불이", "탐험가", "마법사", "비행사", 
+            "예술가", "과학자", "여행자", "개발자"
+        ];
+        
+        function generateRandomName() {
+            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const noun = nouns[Math.floor(Math.random() * nouns.length)];
+            return `${adj} ${noun}`;
+        }
+
+        function showWelcomeMessage(name) {
+            userInfoInputsDiv.classList.add('hidden');
+            welcomeMessageDiv.innerHTML = '';
+
+            const welcomeText = document.createElement('span');
+            welcomeText.textContent = `환영합니다, ${name}님! `;
+            welcomeMessageDiv.appendChild(welcomeText);
+
+            const changeNameButton = document.createElement('button');
+            changeNameButton.textContent = '닉네임 변경';
+            changeNameButton.className = 'ml-2 text-sm font-semibold text-blue-600 hover:underline focus:outline-none';
+            changeNameButton.type = 'button';
+            changeNameButton.onclick = () => {
+                localStorage.removeItem('commentAppRandomName');
+                welcomeMessageDiv.classList.add('hidden');
+                userInfoInputsDiv.classList.remove('hidden');
+            };
+            welcomeMessageDiv.appendChild(changeNameButton);
+            
+            welcomeMessageDiv.classList.remove('hidden');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const savedId = localStorage.getItem('commentAppStudentId');
             const savedName = localStorage.getItem('commentAppStudentName');
+            const savedRandomName = localStorage.getItem('commentAppRandomName');
+
             if (savedId) studentIdInput.value = savedId;
             if (savedName) studentNameInput.value = savedName;
+            if (savedRandomName) {
+                showWelcomeMessage(savedRandomName);
+            }
         });
 
         onAuthStateChanged(auth, user => {
@@ -122,11 +167,19 @@
             if (!currentUserId) { console.error("인증 정보 없음"); return; }
 
             submitButton.disabled = true;
+
+            let randomName = localStorage.getItem('commentAppRandomName');
+            if (!randomName) {
+                randomName = generateRandomName();
+                localStorage.setItem('commentAppRandomName', randomName);
+            }
+
             try {
-                await addDoc(commentsCol, { text, studentId, name, createdAt: serverTimestamp(), authorId: currentUserId });
+                await addDoc(commentsCol, { text, studentId, name, randomName, createdAt: serverTimestamp(), authorId: currentUserId });
                 commentInput.value = '';
                 localStorage.setItem('commentAppStudentId', studentId);
                 localStorage.setItem('commentAppStudentName', name);
+                showWelcomeMessage(randomName);
             } catch (error) {
                 console.error("댓글 추가 오류: ", error);
             } finally {
@@ -134,7 +187,6 @@
             }
         };
 
-        // --- NEW: 댓글 삭제 함수 ---
         const deleteComment = async (commentId) => {
             try {
                 const commentDocRef = doc(db, `/artifacts/${appId}/public/data/comments`, commentId);
@@ -151,9 +203,7 @@
                 const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 comments.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
                 renderComments(comments);
-            }, (error) => {
-                console.error("댓글 수신 오류: ", error);
-            });
+            }, (error) => console.error("댓글 수신 오류: ", error));
         };
 
         const renderComments = (comments) => {
@@ -162,23 +212,22 @@
 
             comments.forEach(comment => {
                 const commentElement = document.createElement('div');
-                // --- UPDATE: relative 클래스 추가 ---
                 commentElement.className = 'comment-item bg-white p-4 rounded-lg shadow-sm border border-gray-200 relative';
                 
                 const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
                 const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString('ko-KR') : '';
+                const displayName = comment.randomName || '익명';
 
                 commentElement.innerHTML = `
                     <div class="flex items-start justify-between">
                         <p class="text-gray-800 whitespace-pre-wrap flex-1 pr-4">${escapeHTML(comment.text)}</p>
-                        <span class="text-sm font-medium text-gray-500">익명</span>
+                        <span class="text-sm font-medium text-gray-500">${escapeHTML(displayName)}</span>
                     </div>
                     <div class="text-right text-xs text-gray-400 mt-2">${date}</div>
                 `;
                 commentsContainer.appendChild(commentElement);
 
                 if (isAdmin) {
-                    // 툴팁 기능
                     let tooltipElement = null;
                     commentElement.style.cursor = 'help';
                     commentElement.addEventListener('mouseenter', (e) => {
@@ -197,7 +246,6 @@
                         }
                     });
 
-                    // --- NEW: 삭제 버튼 생성 및 이벤트 추가 ---
                     const deleteButton = document.createElement('button');
                     deleteButton.textContent = '삭제';
                     deleteButton.className = 'absolute top-3 right-3 text-xs bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2';
@@ -208,7 +256,7 @@
         };
 
         function escapeHTML(str) {
-            return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+            return str ? str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) : '';
         }
 
         commentForm.addEventListener('submit', (e) => {
