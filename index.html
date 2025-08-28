@@ -31,7 +31,7 @@
 <body class="bg-gray-50 text-gray-800">
 
     <div id="app" class="p-4 sm:p-6 max-w-2xl mx-auto">
-        <div id="admin-controls" class="mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+        <div id="admin-controls" class="hidden mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
             <span class="font-semibold text-gray-700 text-sm">관리자 모드</span>
             <div class="flex space-x-2">
                 <button id="toggle-visibility-btn" class="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded-md hover:bg-yellow-600 transition-colors">댓글 기록 숨기기</button>
@@ -41,8 +41,11 @@
 
         <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글</h1>
 
+        <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center">
+            <!-- 닉네임이 여기에 표시됩니다. -->
+        </div>
+
         <form id="comment-form" class="mb-6">
-            <div id="welcome-message" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
             <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
                 <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
                 <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
@@ -78,6 +81,7 @@
         };
 
         const appId = 'default-comment-app';
+        // ## 수정 ##: initializeApp(app) -> initializeApp(firebaseConfig)로 변경
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -89,8 +93,7 @@
         const commentsContainer = document.getElementById('comments-container');
         const loadingDiv = document.getElementById('loading');
         const noCommentsDiv = document.getElementById('no-comments');
-        const welcomeMessageDiv = document.getElementById('welcome-message');
-        const userInfoInputsDiv = document.getElementById('user-info-inputs');
+        const nicknameDisplayDiv = document.getElementById('nickname-display');
         const adminControlsDiv = document.getElementById('admin-controls');
         const toggleVisibilityBtn = document.getElementById('toggle-visibility-btn');
         const exportResetBtn = document.getElementById('export-reset-btn');
@@ -100,15 +103,15 @@
         const isAdmin = urlParams.get('admin') === 'true';
         let currentUserId = null;
 
-        // --- FIX: 스크립트 실행 즉시 관리자 UI 상태를 결정하여 안정성 확보 ---
         if (isAdmin) {
             document.title = '댓글 기능[관리자]';
             adminControlsDiv.classList.remove('hidden');
         } else {
-            adminControlsDiv.style.display = 'none'; // 가장 확실하게 숨기는 방식
+            adminControlsDiv.style.display = 'none';
         }
 
         const adjectives = ["친절한", "용감한", "현명한", "재빠른", "고요한", "빛나는", "행복한", "즐거운", "성실한", "신비한", "똑똑한", "상냥한", "유쾌한", "위대한", "평화로운", "자유로운", "엉뚱한", "긍정적인", "창의적인", "부지런한"];
+        const modifiers = ["꿈을 꾸는", "별을 보는", "숲속의", "바다의", "하늘을 나는", "노래하는", "책을 읽는", "춤을 추는", "그림을 그리는", "불을 다루는", "물을 다스리는", "바람을 타는", "땅을 지키는", "빛을 쫓는", "어둠 속의", "시간을 넘나드는", "이야기를 만드는", "지혜를 찾는", "용기를 내는", "미래를 여는"];
         const nouns = ["호랑이", "사자", "토끼", "거북이", "돌고래", "독수리", "다람쥐", "고양이", "강아지", "유니콘", "기린", "코알라", "반딧불이", "탐험가", "마법사", "비행사", "예술가", "과학자", "여행자", "개발자"];
         
         const commentsCol = collection(db, `/artifacts/${appId}/public/data/comments`);
@@ -116,18 +119,24 @@
 
         function generateRandomName() {
             const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const mod = modifiers[Math.floor(Math.random() * modifiers.length)];
             const noun = nouns[Math.floor(Math.random() * nouns.length)];
-            return `${adj} ${noun}`;
+            return `${adj} ${mod} ${noun}`;
         }
 
-        function showWelcomeMessage(name) {
-            userInfoInputsDiv.classList.add('hidden');
-            welcomeMessageDiv.innerHTML = `<span>환영합니다, ${name}님! </span><button type="button" id="change-name-btn" class="ml-2 text-sm font-semibold text-blue-600 hover:underline focus:outline-none">닉네임 변경</button>`;
-            welcomeMessageDiv.classList.remove('hidden');
+        function setupNickname() {
+            let randomName = localStorage.getItem('commentAppRandomName');
+            if (!randomName) {
+                randomName = generateRandomName();
+                localStorage.setItem('commentAppRandomName', randomName);
+            }
+
+            nicknameDisplayDiv.innerHTML = `<span>당신의 닉네임은 <b>${randomName}</b> 입니다. </span><button type="button" id="change-name-btn" class="ml-2 text-sm font-semibold text-blue-600 hover:underline focus:outline-none">다른 닉네임 받기</button>`;
+            nicknameDisplayDiv.classList.remove('hidden');
+            
             document.getElementById('change-name-btn').onclick = () => {
                 localStorage.removeItem('commentAppRandomName');
-                welcomeMessageDiv.classList.add('hidden');
-                userInfoInputsDiv.classList.remove('hidden');
+                setupNickname();
             };
         }
 
@@ -138,13 +147,17 @@
         const addComment = async (studentId, name, text) => {
             if (!studentId.trim() || !name.trim() || !text.trim()) return;
             if (!currentUserId) { console.error("인증 정보 없음"); return; }
+            
             const submitButton = document.getElementById('submit-button');
             submitButton.disabled = true;
+            submitButton.textContent = '등록 중...';
 
-            let randomName = localStorage.getItem('commentAppRandomName');
+            const randomName = localStorage.getItem('commentAppRandomName');
             if (!randomName) {
-                randomName = generateRandomName();
-                localStorage.setItem('commentAppRandomName', randomName);
+                console.error("닉네임이 없습니다. 페이지를 새로고침하세요.");
+                submitButton.disabled = false;
+                submitButton.textContent = '댓글 달기';
+                return;
             }
 
             try {
@@ -152,11 +165,11 @@
                 commentInput.value = '';
                 localStorage.setItem('commentAppStudentId', studentId);
                 localStorage.setItem('commentAppStudentName', name);
-                showWelcomeMessage(randomName);
             } catch (error) {
                 console.error("댓글 추가 오류: ", error);
             } finally {
                 submitButton.disabled = false;
+                submitButton.textContent = '댓글 달기';
             }
         };
 
@@ -287,10 +300,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             const savedId = localStorage.getItem('commentAppStudentId');
             const savedName = localStorage.getItem('commentAppStudentName');
-            const savedRandomName = localStorage.getItem('commentAppRandomName');
             if (savedId) studentIdInput.value = savedId;
             if (savedName) studentNameInput.value = savedName;
-            if (savedRandomName) showWelcomeMessage(savedRandomName);
+            
+            setupNickname();
             
             if (isAdmin) {
                 toggleVisibilityBtn.addEventListener('click', toggleVisibility);
