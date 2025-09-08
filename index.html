@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 좋아요 아이콘을 위한 Font Awesome 추가 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" xintegrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         body { font-family: 'Inter', sans-serif; }
         ::-webkit-scrollbar { width: 8px; }
@@ -69,7 +71,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, deleteDoc, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, deleteDoc, getDocs, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA7ztbUE3cgak7lIlwO-U4eQTze9g0ykRQ",
@@ -81,7 +83,6 @@
         };
 
         const appId = 'default-comment-app';
-        // ## 수정 ##: initializeApp(app) -> initializeApp(firebaseConfig)로 변경
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -130,10 +131,8 @@
                 randomName = generateRandomName();
                 localStorage.setItem('commentAppRandomName', randomName);
             }
-
             nicknameDisplayDiv.innerHTML = `<span>당신의 닉네임은 <b>${randomName}</b> 입니다. </span><button type="button" id="change-name-btn" class="ml-2 text-sm font-semibold text-blue-600 hover:underline focus:outline-none">다른 닉네임 받기</button>`;
             nicknameDisplayDiv.classList.remove('hidden');
-            
             document.getElementById('change-name-btn').onclick = () => {
                 localStorage.removeItem('commentAppRandomName');
                 setupNickname();
@@ -145,8 +144,7 @@
         }
 
         const addComment = async (studentId, name, text) => {
-            if (!studentId.trim() || !name.trim() || !text.trim()) return;
-            if (!currentUserId) { console.error("인증 정보 없음"); return; }
+            if (!studentId.trim() || !name.trim() || !text.trim() || !currentUserId) return;
             
             const submitButton = document.getElementById('submit-button');
             submitButton.disabled = true;
@@ -161,7 +159,15 @@
             }
 
             try {
-                await addDoc(commentsCol, { text, studentId, name, randomName, createdAt: serverTimestamp(), authorId: currentUserId });
+                await addDoc(commentsCol, { 
+                    text, 
+                    studentId, 
+                    name, 
+                    randomName, 
+                    createdAt: serverTimestamp(), 
+                    authorId: currentUserId,
+                    likedBy: [] // 좋아요를 누른 사용자 ID 목록 필드 추가
+                });
                 commentInput.value = '';
                 localStorage.setItem('commentAppStudentId', studentId);
                 localStorage.setItem('commentAppStudentName', name);
@@ -172,20 +178,41 @@
                 submitButton.textContent = '댓글 달기';
             }
         };
+        
+        const deleteCommentForAdmin = async (commentId) => {
+            if (!isAdmin) {
+                alert("삭제 권한이 없습니다.");
+                return;
+            }
+            if (confirm("정말로 이 댓글을 삭제하시겠습니까?")) {
+                try {
+                    await deleteDoc(doc(db, `/artifacts/${appId}/public/data/comments`, commentId));
+                } catch (error) {
+                    console.error("관리자 댓글 삭제 오류: ", error);
+                }
+            }
+        };
 
-        const deleteComment = async (commentId) => {
-            try {
-                const commentDocRef = doc(db, `/artifacts/${appId}/public/data/comments`, commentId);
-                await deleteDoc(commentDocRef);
-            } catch (error) {
-                console.error("댓글 삭제 오류: ", error);
+        const likeComment = async (commentId) => {
+            if (!currentUserId) {
+                console.error("인증 정보가 없어 좋아요를 누를 수 없습니다.");
+                return;
+            }
+            const commentDocRef = doc(db, `/artifacts/${appId}/public/data/comments`, commentId);
+            const docSnapshot = await getDoc(commentDocRef);
+            
+            if (docSnapshot.exists()) {
+                const likedBy = docSnapshot.data().likedBy || [];
+                if (likedBy.includes(currentUserId)) {
+                    await updateDoc(commentDocRef, { likedBy: arrayRemove(currentUserId) });
+                } else {
+                    await updateDoc(commentDocRef, { likedBy: arrayUnion(currentUserId) });
+                }
             }
         };
 
         const renderComments = (comments) => {
             commentsContainer.innerHTML = '';
-            commentsContainer.appendChild(loadingDiv);
-            commentsContainer.appendChild(noCommentsDiv);
             loadingDiv.style.display = 'none';
             noCommentsDiv.classList.toggle('hidden', comments.length > 0);
 
@@ -196,47 +223,52 @@
                 const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
                 const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString('ko-KR') : '';
                 const displayName = comment.randomName || '익명';
+                const likedByCount = comment.likedBy?.length || 0;
+                const isLikedByCurrentUser = comment.likedBy?.includes(currentUserId);
 
                 commentElement.innerHTML = `
                     <div class="flex items-start justify-between">
                         <p class="text-gray-800 whitespace-pre-wrap flex-1 pr-4">${escapeHTML(comment.text)}</p>
                         <span class="text-sm font-medium text-gray-500">${escapeHTML(displayName)}</span>
                     </div>
-                    <div class="text-right text-xs text-gray-400 mt-2">${date}</div>
+                    <div class="flex justify-between items-center mt-3">
+                        <button class="like-button flex items-center space-x-1.5 text-sm ${isLikedByCurrentUser ? 'text-blue-600 font-semibold' : 'text-gray-500'} hover:text-blue-600 transition-colors" data-comment-id="${comment.id}">
+                            <i class="${isLikedByCurrentUser ? 'fa-solid' : 'fa-regular'} fa-thumbs-up"></i>
+                            <span>${likedByCount}</span>
+                        </button>
+                        <div class="text-xs text-gray-400">${date}</div>
+                    </div>
                 `;
                 commentsContainer.appendChild(commentElement);
 
+                commentElement.querySelector('.like-button').onclick = () => likeComment(comment.id);
+
                 if (isAdmin) {
-                    let tooltipElement = null;
+                    let tooltipElement;
                     commentElement.style.cursor = 'help';
                     commentElement.addEventListener('mouseenter', (e) => {
                         tooltipElement = document.createElement('div');
                         tooltipElement.className = 'admin-tooltip';
                         tooltipElement.textContent = authorInfo;
                         document.body.appendChild(tooltipElement);
-                        tooltipElement.style.left = `${e.pageX + 10}px`;
-                        tooltipElement.style.top = `${e.pageY - 28}px`;
+                        const rect = commentElement.getBoundingClientRect();
+                        tooltipElement.style.left = `${e.clientX}px`;
+                        tooltipElement.style.top = `${rect.top - 30}px`;
                     });
                     commentElement.addEventListener('mouseleave', () => tooltipElement?.remove());
-                    commentElement.addEventListener('mousemove', (e) => {
-                        if (tooltipElement) {
-                            tooltipElement.style.left = `${e.pageX + 10}px`;
-                            tooltipElement.style.top = `${e.pageY - 28}px`;
-                        }
-                    });
-
+                    
                     const deleteButton = document.createElement('button');
-                    deleteButton.textContent = '삭제';
-                    deleteButton.className = 'absolute top-3 right-3 text-xs bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2';
-                    deleteButton.onclick = () => deleteComment(comment.id);
-                    commentElement.appendChild(deleteButton);
+                    deleteButton.innerHTML = `<i class="fa-solid fa-trash-can"></i>`;
+                    deleteButton.className = 'absolute top-3 right-3 text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded-md transition-colors';
+                    deleteButton.title = '댓글 삭제';
+                    deleteButton.onclick = () => deleteCommentForAdmin(comment.id);
+                    commentElement.querySelector('.flex.items-start.justify-between').appendChild(deleteButton);
                 }
             });
         };
-
+        
         const listenForComments = () => {
-            onSnapshot(query(commentsCol), (snapshot) => {
-                loadingDiv.style.display = 'none';
+            onSnapshot(query(collection(db, `/artifacts/${appId}/public/data/comments`)), (snapshot) => {
                 const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 comments.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
                 renderComments(comments);
@@ -259,8 +291,7 @@
                 alert('저장할 댓글이 없습니다.');
                 return;
             }
-
-            const headers = ['작성일시', '학번', '이름', '닉네임', '댓글내용'];
+            const headers = ['작성일시', '학번', '이름', '닉네임', '댓글내용', '좋아요 수', '좋아요 UID 목록'];
             const csvContent = [
                 headers.join(','),
                 ...comments.map(c => [
@@ -268,7 +299,9 @@
                     `"${c.studentId || ''}"`,
                     `"${c.name || ''}"`,
                     `"${c.randomName || ''}"`,
-                    `"${(c.text || '').replace(/"/g, '""')}"`
+                    `"${(c.text || '').replace(/"/g, '""')}"`,
+                    c.likedBy?.length || 0,
+                    `"${(c.likedBy || []).join(' ')}"`
                 ].join(','))
             ].join('\n');
 
@@ -277,12 +310,7 @@
             const url = URL.createObjectURL(blob);
             
             const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const filename = `comments_${year}-${month}-${day}_${hours}-${minutes}.csv`;
+            const filename = `comments_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.csv`;
             
             link.setAttribute("href", url);
             link.setAttribute("download", filename);
@@ -298,10 +326,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const savedId = localStorage.getItem('commentAppStudentId');
-            const savedName = localStorage.getItem('commentAppStudentName');
-            if (savedId) studentIdInput.value = savedId;
-            if (savedName) studentNameInput.value = savedName;
+            studentIdInput.value = localStorage.getItem('commentAppStudentId') || '';
+            studentNameInput.value = localStorage.getItem('commentAppStudentName') || '';
             
             setupNickname();
             
@@ -309,29 +335,28 @@
                 toggleVisibilityBtn.addEventListener('click', toggleVisibility);
                 exportResetBtn.addEventListener('click', exportAndReset);
             }
-        });
 
-        onSnapshot(settingsDoc, (docSnapshot) => {
-            const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
-            
-            if (isAdmin) {
-                commentsContainer.classList.remove('hidden');
-                commentsHiddenMessage.classList.add('hidden');
-                toggleVisibilityBtn.textContent = isRecordVisible ? '댓글 기록 숨기기' : '댓글 기록 보이기';
-            } else {
-                commentsContainer.classList.toggle('hidden', !isRecordVisible);
-                commentsHiddenMessage.classList.toggle('hidden', isRecordVisible);
-            }
-        });
+            onSnapshot(settingsDoc, (docSnapshot) => {
+                const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
+                commentsContainer.classList.toggle('hidden', !isAdmin && !isRecordVisible);
+                commentsHiddenMessage.classList.toggle('hidden', isAdmin || isRecordVisible);
+                if(isAdmin) {
+                    toggleVisibilityBtn.textContent = isRecordVisible ? '댓글 기록 숨기기' : '댓글 기록 보이기';
+                }
+            });
 
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                currentUserId = user.uid;
-                listenForComments();
-            }
-        });
+            signInAnonymously(auth).catch(error => console.error("익명 로그인 실패:", error));
 
-        signInAnonymously(auth).catch(error => console.error("익명 로그인 실패:", error));
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    currentUserId = user.uid;
+                    listenForComments();
+                } else {
+                    currentUserId = null;
+                    commentsContainer.innerHTML = '<p class="text-center text-red-500">인증에 실패하여 댓글을 불러올 수 없습니다. 페이지를 새로고침 해주세요.</p>';
+                }
+            });
+        });
 
         commentForm.addEventListener('submit', (e) => {
             e.preventDefault();
