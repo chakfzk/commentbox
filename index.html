@@ -41,30 +41,37 @@
             </div>
         </div>
 
-        <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글</h1>
+        <!-- 화면 상단에 고정될 전체 헤더 영역 -->
+        <div class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm border-b -mx-4 px-4 sm:-mx-6 sm:px-6 pt-4 pb-4 mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글</h1>
 
-        <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center">
-            <!-- 닉네임이 여기에 표시됩니다. -->
+            <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center">
+                <!-- 닉네임이 여기에 표시됩니다. -->
+            </div>
+
+            <!-- 입력 폼 (이제 sticky 클래스가 없음) -->
+            <form id="comment-form">
+                <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
+                    <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
+                    <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
+                </div>
+                <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
+                <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
+            </form>
         </div>
 
-        <form id="comment-form" class="mb-6">
-            <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
-                <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
-                <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
+        <!-- 댓글 목록이 스크롤될 영역 -->
+        <div id="comments-scroll-area">
+            <div id="comments-hidden-message" class="hidden p-4 text-center">
+                <div class="p-4 bg-gray-100 text-gray-600 rounded-lg">
+                    <p>댓글 기록이 현재 비공개입니다.</p>
+                </div>
             </div>
-            <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
-            <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
-        </form>
-
-        <div id="comments-hidden-message" class="hidden p-4 text-center">
-            <div class="p-4 bg-gray-100 text-gray-600 rounded-lg">
-                <p>댓글 기록이 현재 비공개입니다.</p>
+    
+            <div id="comments-container" class="space-y-4">
+                <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
+                <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다.</p></div>
             </div>
-        </div>
-
-        <div id="comments-container" class="space-y-4">
-            <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
-            <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다.</p></div>
         </div>
     </div>
 
@@ -166,7 +173,7 @@
                     randomName, 
                     createdAt: serverTimestamp(), 
                     authorId: currentUserId,
-                    likedBy: [] // 좋아요를 누른 사용자 ID 목록 필드 추가
+                    likedBy: []
                 });
                 commentInput.value = '';
                 localStorage.setItem('commentAppStudentId', studentId);
@@ -185,7 +192,7 @@
         
         const deleteCommentForAdmin = async (commentId) => {
             if (!isAdmin) {
-                alert("삭제 권한이 없습니다.");
+                alert("삭제 권한이 없습니다."); 
                 return;
             }
             if (confirm("정말로 이 댓글을 삭제하시겠습니까?")) {
@@ -343,8 +350,8 @@
 
             onSnapshot(settingsDoc, (docSnapshot) => {
                 const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
-                commentsContainer.classList.toggle('hidden', !isAdmin && !isRecordVisible);
-                commentsHiddenMessage.classList.toggle('hidden', isAdmin || isRecordVisible);
+                const commentsScrollArea = document.getElementById('comments-scroll-area');
+                commentsScrollArea.classList.toggle('hidden', !isAdmin && !isRecordVisible);
                 if(isAdmin) {
                     toggleVisibilityBtn.textContent = isRecordVisible ? '댓글 기록 숨기기' : '댓글 기록 보이기';
                 }
