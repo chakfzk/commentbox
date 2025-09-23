@@ -51,10 +51,11 @@
                 </div>
             </div>
 
-            <div class="flex flex-col md:flex-row md:space-x-6">
+            <!-- 수정된 부분: md: prefix 제거하여 항상 가로 정렬되도록 변경 -->
+            <div class="flex flex-row space-x-4">
 
                 <!-- 왼쪽 컬럼: 댓글 목록 -->
-                <div class="w-full md:w-7/12">
+                <div class="w-7/12">
                     <div id="comments-scroll-area" class="h-[65vh] overflow-y-auto p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
                         <div id="comments-container" class="space-y-0">
                             <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
@@ -64,16 +65,16 @@
                 </div>
 
                 <!-- 오른쪽 컬럼: 입력 영역 -->
-                <div class="w-full md:w-5/12 mt-6 md:mt-0">
+                <div class="w-5/12">
                     <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글 <span id="mode-indicator" class="text-base align-middle font-medium text-gray-500"></span></h1>
                     <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
                     <form id="comment-form">
-                        <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
-                            <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
-                            <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
+                        <div id="user-info-inputs" class="flex flex-col mb-2 space-y-2">
+                            <input type="text" id="student-id" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="학번" required>
+                            <input type="text" id="student-name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
                         </div>
                         <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
-                        <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
+                        <button type="submit" id="submit-button" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
                     </form>
                 </div>
 
@@ -81,11 +82,12 @@
         </div>
     </div>
     
+    <!-- 수정된 부분: 확대/축소 버튼 크기 w-10 h-10으로 변경 -->
     <div class="fixed bottom-5 right-5 space-x-2 flex">
-        <button id="zoom-out-btn" class="bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" title="축소">
+        <button id="zoom-out-btn" class="bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" title="축소">
             <i class="fa-solid fa-magnifying-glass-minus"></i>
         </button>
-        <button id="zoom-in-btn" class="bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" title="확대">
+        <button id="zoom-in-btn" class="bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" title="확대">
             <i class="fa-solid fa-magnifying-glass-plus"></i>
         </button>
     </div>
@@ -241,7 +243,6 @@
 
             currentComments.forEach(comment => {
                 const commentElement = document.createElement('div');
-                // 수정된 부분: 댓글 스타일 변경
                 commentElement.className = 'comment-item py-4 border-b border-gray-200 last:border-b-0';
                 const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
                 const displayName = comment.randomName || '익명';
