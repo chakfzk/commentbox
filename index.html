@@ -8,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 좋아요 아이콘을 위한 Font Awesome 추가 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" xintegrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -17,7 +16,7 @@
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
         .admin-tooltip {
-            position: absolute;
+            position: fixed;
             background-color: #333;
             color: #fff;
             padding: 6px 10px;
@@ -28,51 +27,61 @@
             pointer-events: none;
             transition: opacity 0.2s;
         }
+        #app-container {
+            transition: transform 0.2s ease-in-out;
+            transform-origin: center top;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <div id="app" class="p-4 sm:p-6 max-w-2xl mx-auto">
-        <div id="admin-controls" class="hidden mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-            <span class="font-semibold text-gray-700 text-sm">관리자 모드</span>
-            <div class="flex space-x-2">
-                <button id="toggle-visibility-btn" class="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded-md hover:bg-yellow-600 transition-colors">댓글 기록 숨기기</button>
-                <button id="export-reset-btn" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-md hover:bg-red-600 transition-colors">데이터 저장(CSV) 및 초기화</button>
-            </div>
-        </div>
-
-        <!-- 화면 상단에 고정될 전체 헤더 영역 -->
-        <div class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm border-b -mx-4 px-4 sm:-mx-6 sm:px-6 pt-4 pb-4 mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글</h1>
-
-            <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center">
-                <!-- 닉네임이 여기에 표시됩니다. -->
-            </div>
-
-            <!-- 입력 폼 (이제 sticky 클래스가 없음) -->
-            <form id="comment-form">
-                <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
-                    <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
-                    <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
-                </div>
-                <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
-                <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
-            </form>
-        </div>
-
-        <!-- 댓글 목록이 스크롤될 영역 -->
-        <div id="comments-scroll-area">
-            <div id="comments-hidden-message" class="hidden p-4 text-center">
-                <div class="p-4 bg-gray-100 text-gray-600 rounded-lg">
-                    <p>댓글 기록이 현재 비공개입니다.</p>
+    <div id="app-container">
+        <div id="app" class="p-4 sm:p-6 max-w-lg mx-auto">
+            <div id="admin-controls" class="hidden mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+                <span class="font-semibold text-gray-700 text-sm">관리자 모드</span>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 text-sm">
+                        <span class="font-medium text-gray-600">댓글 숨기기</span>
+                        <label for="visibility-toggle" class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="visibility-toggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                        <span class="font-medium text-gray-600">댓글 보이기</span>
+                    </div>
+                    <button id="export-reset-btn" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-md hover:bg-red-600 transition-colors">데이터 저장(CSV) 및 초기화</button>
                 </div>
             </div>
+
+            <div class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 pt-4 pb-4 mb-6">
+                <!-- 수정된 부분: 모드 표시기 추가 -->
+                <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글 <span id="mode-indicator" class="text-base align-middle font-medium text-gray-500"></span></h1>
+                <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
+                <form id="comment-form">
+                    <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
+                        <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
+                        <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
+                    </div>
+                    <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
+                    <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
+                </form>
+            </div>
+            
+            <div id="comments-scroll-area" class="h-[50vh] overflow-y-auto p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
+                <div id="comments-container" class="space-y-4">
+                    <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
+                    <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다.</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
     
-            <div id="comments-container" class="space-y-4">
-                <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
-                <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다.</p></div>
-            </div>
-        </div>
+    <div class="fixed bottom-5 right-5 space-x-2 flex">
+        <button id="zoom-out-btn" class="bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" title="축소">
+            <i class="fa-solid fa-magnifying-glass-minus"></i>
+        </button>
+        <button id="zoom-in-btn" class="bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" title="확대">
+            <i class="fa-solid fa-magnifying-glass-plus"></i>
+        </button>
     </div>
 
     <script type="module">
@@ -94,6 +103,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        const appContainer = document.getElementById('app-container');
         const studentIdInput = document.getElementById('student-id');
         const studentNameInput = document.getElementById('student-name');
         const commentInput = document.getElementById('comment-input');
@@ -103,27 +113,36 @@
         const noCommentsDiv = document.getElementById('no-comments');
         const nicknameDisplayDiv = document.getElementById('nickname-display');
         const adminControlsDiv = document.getElementById('admin-controls');
-        const toggleVisibilityBtn = document.getElementById('toggle-visibility-btn');
         const exportResetBtn = document.getElementById('export-reset-btn');
-        const commentsHiddenMessage = document.getElementById('comments-hidden-message');
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const isAdmin = urlParams.get('admin') === 'true';
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+        const modeIndicator = document.getElementById('mode-indicator');
+
         let currentUserId = null;
-
-        if (isAdmin) {
-            document.title = '댓글 기능[관리자]';
-            adminControlsDiv.classList.remove('hidden');
-        } else {
-            adminControlsDiv.style.display = 'none';
-        }
-
+        let isUserInAdminMode = false;
+        let currentComments = [];
+        let currentScale = 0.8; 
+        
         const adjectives = ["친절한", "용감한", "현명한", "재빠른", "고요한", "빛나는", "행복한", "즐거운", "성실한", "신비한", "똑똑한", "상냥한", "유쾌한", "위대한", "평화로운", "자유로운", "엉뚱한", "긍정적인", "창의적인", "부지런한"];
         const modifiers = ["꿈을 꾸는", "별을 보는", "숲속의", "바다의", "하늘을 나는", "노래하는", "책을 읽는", "춤을 추는", "그림을 그리는", "불을 다루는", "물을 다스리는", "바람을 타는", "땅을 지키는", "빛을 쫓는", "어둠 속의", "시간을 넘나드는", "이야기를 만드는", "지혜를 찾는", "용기를 내는", "미래를 여는"];
         const nouns = ["호랑이", "사자", "토끼", "거북이", "돌고래", "독수리", "다람쥐", "고양이", "강아지", "유니콘", "기린", "코알라", "반딧불이", "탐험가", "마법사", "비행사", "예술가", "과학자", "여행자", "개발자"];
         
         const commentsCol = collection(db, `/artifacts/${appId}/public/data/comments`);
         const settingsDoc = doc(db, `/artifacts/${appId}/public/data/settings`, 'config');
+        
+        function updateAdminUI() {
+            adminControlsDiv.classList.toggle('hidden', !isUserInAdminMode);
+            document.title = isUserInAdminMode ? '댓글 기능[관리자]' : '댓글 기능';
+            // 수정된 부분: 모드 표시기 텍스트 업데이트
+            if (modeIndicator) {
+                modeIndicator.textContent = isUserInAdminMode ? '[관리자 모드]' : '[일반 모드]';
+            }
+            renderComments();
+        }
+
+        function applyScale() {
+            appContainer.style.transform = `scale(${currentScale})`;
+        }
 
         function generateRandomName() {
             const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
@@ -152,11 +171,9 @@
 
         const addComment = async (studentId, name, text) => {
             if (!studentId.trim() || !name.trim() || !text.trim() || !currentUserId) return;
-            
             const submitButton = document.getElementById('submit-button');
             submitButton.disabled = true;
             submitButton.textContent = '등록 중...';
-
             const randomName = localStorage.getItem('commentAppRandomName');
             if (!randomName) {
                 console.error("닉네임이 없습니다. 페이지를 새로고침하세요.");
@@ -164,24 +181,11 @@
                 submitButton.textContent = '댓글 달기';
                 return;
             }
-
             try {
-                await addDoc(commentsCol, { 
-                    text, 
-                    studentId, 
-                    name, 
-                    randomName, 
-                    createdAt: serverTimestamp(), 
-                    authorId: currentUserId,
-                    likedBy: []
-                });
+                await addDoc(commentsCol, { text, studentId, name, randomName, createdAt: serverTimestamp(), authorId: currentUserId, likedBy: [] });
                 commentInput.value = '';
                 localStorage.setItem('commentAppStudentId', studentId);
                 localStorage.setItem('commentAppStudentName', name);
-
-                // 댓글 작성 후 맨 아래로 스무스하게 스크롤
-                setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
-
             } catch (error) {
                 console.error("댓글 추가 오류: ", error);
             } finally {
@@ -191,7 +195,7 @@
         };
         
         const deleteCommentForAdmin = async (commentId) => {
-            if (!isAdmin) {
+            if (!isUserInAdminMode) {
                 alert("삭제 권한이 없습니다."); 
                 return;
             }
@@ -205,13 +209,9 @@
         };
 
         const likeComment = async (commentId) => {
-            if (!currentUserId) {
-                console.error("인증 정보가 없어 좋아요를 누를 수 없습니다.");
-                return;
-            }
+            if (!currentUserId) { return; }
             const commentDocRef = doc(db, `/artifacts/${appId}/public/data/comments`, commentId);
             const docSnapshot = await getDoc(commentDocRef);
-            
             if (docSnapshot.exists()) {
                 const likedBy = docSnapshot.data().likedBy || [];
                 if (likedBy.includes(currentUserId)) {
@@ -222,15 +222,14 @@
             }
         };
 
-        const renderComments = (comments) => {
+        const renderComments = () => {
             commentsContainer.innerHTML = '';
             loadingDiv.style.display = 'none';
-            noCommentsDiv.classList.toggle('hidden', comments.length > 0);
+            noCommentsDiv.classList.toggle('hidden', currentComments.length > 0);
 
-            comments.forEach(comment => {
+            currentComments.forEach(comment => {
                 const commentElement = document.createElement('div');
-                commentElement.className = 'comment-item bg-white p-4 rounded-lg shadow-sm border border-gray-200 relative';
-                
+                commentElement.className = 'comment-item bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 relative';
                 const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
                 const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString('ko-KR') : '';
                 const displayName = comment.randomName || '익명';
@@ -248,13 +247,11 @@
                             <span>${likedByCount}</span>
                         </button>
                         <div class="text-xs text-gray-400">${date}</div>
-                    </div>
-                `;
+                    </div>`;
                 commentsContainer.appendChild(commentElement);
-
                 commentElement.querySelector('.like-button').onclick = () => likeComment(comment.id);
 
-                if (isAdmin) {
+                if (isUserInAdminMode) {
                     let tooltipElement;
                     commentElement.style.cursor = 'help';
                     commentElement.addEventListener('mouseenter', (e) => {
@@ -262,12 +259,16 @@
                         tooltipElement.className = 'admin-tooltip';
                         tooltipElement.textContent = authorInfo;
                         document.body.appendChild(tooltipElement);
-                        const rect = commentElement.getBoundingClientRect();
-                        tooltipElement.style.left = `${e.clientX}px`;
-                        tooltipElement.style.top = `${rect.top - 30}px`;
+                        tooltipElement.style.left = `${e.clientX + 10}px`;
+                        tooltipElement.style.top = `${e.clientY - 30}px`;
+                    });
+                     commentElement.addEventListener('mousemove', (e) => {
+                        if (tooltipElement) {
+                            tooltipElement.style.left = `${e.clientX + 10}px`;
+                            tooltipElement.style.top = `${e.clientY - 30}px`;
+                        }
                     });
                     commentElement.addEventListener('mouseleave', () => tooltipElement?.remove());
-                    
                     const deleteButton = document.createElement('button');
                     deleteButton.innerHTML = `<i class="fa-solid fa-trash-can"></i>`;
                     deleteButton.className = 'absolute top-3 right-3 text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded-md transition-colors';
@@ -280,10 +281,9 @@
         
         const listenForComments = () => {
             onSnapshot(query(collection(db, `/artifacts/${appId}/public/data/comments`)), (snapshot) => {
-                const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // 댓글을 작성 시간 오름차순으로 정렬 (오래된 순 -> 최신 순)
-                comments.sort((a, b) => (a.createdAt?.toDate() || 0) - (b.createdAt?.toDate() || 0));
-                renderComments(comments);
+                currentComments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                currentComments.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
+                renderComments();
             }, (error) => console.error("댓글 수신 오류: ", error));
         };
 
@@ -294,66 +294,59 @@
         }
 
         async function exportAndReset() {
-            if (!confirm('정말로 모든 댓글 데이터를 CSV로 저장하고 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
-            
+            if (!confirm('정말로 모든 댓글 데이터를 CSV로 저장하고 초기화하시겠습니까?')) return;
             const snapshot = await getDocs(query(commentsCol));
             const comments = snapshot.docs.map(doc => doc.data());
-            
-            if (comments.length === 0) {
-                alert('저장할 댓글이 없습니다.');
-                return;
-            }
+            if (comments.length === 0) { alert('저장할 댓글이 없습니다.'); return; }
             const headers = ['작성일시', '학번', '이름', '닉네임', '댓글내용', '좋아요 수', '좋아요 UID 목록'];
-            const csvContent = [
-                headers.join(','),
-                ...comments.map(c => [
-                    c.createdAt?.toDate().toLocaleString('ko-KR') || '',
-                    `"${c.studentId || ''}"`,
-                    `"${c.name || ''}"`,
-                    `"${c.randomName || ''}"`,
-                    `"${(c.text || '').replace(/"/g, '""')}"`,
-                    c.likedBy?.length || 0,
-                    `"${(c.likedBy || []).join(' ')}"`
-                ].join(','))
-            ].join('\n');
-
+            const csvContent = [ headers.join(','), ...comments.map(c => [ c.createdAt?.toDate().toLocaleString('ko-KR') || '', `"${c.studentId || ''}"`, `"${c.name || ''}"`, `"${c.randomName || ''}"`, `"${(c.text || '').replace(/"/g, '""')}"`, c.likedBy?.length || 0, `"${(c.likedBy || []).join(' ')}"` ].join(',')) ].join('\n');
             const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
-            
-            const now = new Date();
-            const filename = `comments_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.csv`;
-            
+            const filename = `comments_${new Date().toISOString().slice(0,10)}.csv`;
             link.setAttribute("href", url);
             link.setAttribute("download", filename);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
-            for (const doc of snapshot.docs) {
-                await deleteDoc(doc.ref);
-            }
+            for (const doc of snapshot.docs) { await deleteDoc(doc.ref); }
             alert('데이터가 저장되고 댓글판이 초기화되었습니다.');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             studentIdInput.value = localStorage.getItem('commentAppStudentId') || '';
             studentNameInput.value = localStorage.getItem('commentAppStudentName') || '';
-            
             setupNickname();
+            applyScale(); 
             
-            if (isAdmin) {
-                toggleVisibilityBtn.addEventListener('click', toggleVisibility);
-                exportResetBtn.addEventListener('click', exportAndReset);
+            const urlParams = new URLSearchParams(window.location.search);
+            isUserInAdminMode = urlParams.get('admin') === 'true';
+            
+            zoomInBtn.addEventListener('click', () => {
+                currentScale = Math.min(1.5, currentScale + 0.1); 
+                applyScale();
+            });
+            
+            zoomOutBtn.addEventListener('click', () => {
+                currentScale = Math.max(0.5, currentScale - 0.1); 
+                applyScale();
+            });
+            
+            updateAdminUI();
+
+            const visibilityToggle = document.getElementById('visibility-toggle');
+            if (visibilityToggle) {
+                visibilityToggle.addEventListener('change', toggleVisibility);
             }
+            exportResetBtn.addEventListener('click', exportAndReset);
 
             onSnapshot(settingsDoc, (docSnapshot) => {
                 const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
                 const commentsScrollArea = document.getElementById('comments-scroll-area');
-                commentsScrollArea.classList.toggle('hidden', !isAdmin && !isRecordVisible);
-                if(isAdmin) {
-                    toggleVisibilityBtn.textContent = isRecordVisible ? '댓글 기록 숨기기' : '댓글 기록 보이기';
+                commentsScrollArea.classList.toggle('hidden', !isUserInAdminMode && !isRecordVisible);
+                if(isUserInAdminMode && visibilityToggle) {
+                    visibilityToggle.checked = isRecordVisible;
                 }
             });
 
