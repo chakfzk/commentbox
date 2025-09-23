@@ -36,7 +36,7 @@
 <body class="bg-gray-50 text-gray-800">
 
     <div id="app-container">
-        <div id="app" class="p-4 sm:p-6 max-w-lg mx-auto">
+        <div id="app" class="p-4 sm:p-6 max-w-4xl mx-auto">
             <div id="admin-controls" class="hidden mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
                 <span class="font-semibold text-gray-700 text-sm">관리자 모드</span>
                 <div class="flex items-center space-x-4">
@@ -51,24 +51,32 @@
                 </div>
             </div>
 
-            <div class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 pt-4 pb-4 mb-6">
-                <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글 <span id="mode-indicator" class="text-base align-middle font-medium text-gray-500"></span></h1>
-                <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
-                <form id="comment-form">
-                    <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
-                        <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
-                        <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
+            <div class="flex flex-col md:flex-row md:space-x-6">
+
+                <!-- 왼쪽 컬럼: 댓글 목록 -->
+                <div class="w-full md:w-7/12">
+                    <div id="comments-scroll-area" class="h-[65vh] overflow-y-auto p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
+                        <div id="comments-container" class="space-y-0">
+                            <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
+                            <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다.</p></div>
+                        </div>
                     </div>
-                    <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
-                    <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
-                </form>
-            </div>
-            
-            <div id="comments-scroll-area" class="h-[50vh] overflow-y-auto p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
-                <div id="comments-container" class="space-y-4">
-                    <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
-                    <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다.</p></div>
                 </div>
+
+                <!-- 오른쪽 컬럼: 입력 영역 -->
+                <div class="w-full md:w-5/12 mt-6 md:mt-0">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글 <span id="mode-indicator" class="text-base align-middle font-medium text-gray-500"></span></h1>
+                    <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
+                    <form id="comment-form">
+                        <div id="user-info-inputs" class="flex flex-col sm:flex-row sm:space-x-2 mb-2">
+                            <input type="text" id="student-id" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2 sm:mb-0" placeholder="학번" required>
+                            <input type="text" id="student-name" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="이름" required>
+                        </div>
+                        <textarea id="comment-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition mb-2" placeholder="댓글을 입력하세요..." required></textarea>
+                        <button type="submit" id="submit-button" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
+                    </form>
+                </div>
+
             </div>
         </div>
     </div>
@@ -129,13 +137,12 @@
         const settingsDoc = doc(db, `/artifacts/${appId}/public/data/settings`, 'config');
         
         function updateAdminUI() {
-            // 수정된 부분: style.display를 직접 제어하여 확실하게 숨김 처리
             if (isUserInAdminMode) {
+                adminControlsDiv.style.display = 'flex';
                 adminControlsDiv.classList.remove('hidden');
-                adminControlsDiv.style.display = 'flex'; 
             } else {
-                adminControlsDiv.classList.add('hidden');
                 adminControlsDiv.style.display = 'none';
+                adminControlsDiv.classList.add('hidden');
             }
             
             document.title = isUserInAdminMode ? '댓글 기능[관리자]' : '댓글 기능';
@@ -234,32 +241,47 @@
 
             currentComments.forEach(comment => {
                 const commentElement = document.createElement('div');
-                commentElement.className = 'comment-item bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 relative';
+                // 수정된 부분: 댓글 스타일 변경
+                commentElement.className = 'comment-item py-4 border-b border-gray-200 last:border-b-0';
                 const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
-                const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString('ko-KR') : '';
                 const displayName = comment.randomName || '익명';
                 const likedByCount = comment.likedBy?.length || 0;
                 const isLikedByCurrentUser = comment.likedBy?.includes(currentUserId);
 
+                const adminDeleteButtonHTML = isUserInAdminMode ? `
+                    <button class="delete-button text-xs text-red-500 hover:text-red-700 transition-colors" title="댓글 삭제">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                ` : '';
+
                 commentElement.innerHTML = `
-                    <div class="flex items-start justify-between">
-                        <p class="text-gray-800 whitespace-pre-wrap flex-1 pr-4">${escapeHTML(comment.text)}</p>
-                        <span class="text-sm font-medium text-gray-500">${escapeHTML(displayName)}</span>
+                    <div class="flex flex-col items-start">
+                        <div class="flex justify-between items-center w-full mb-2">
+                            <span class="comment-author font-semibold text-gray-800 text-sm">${escapeHTML(displayName)}</span>
+                            <div class="flex items-center space-x-3">
+                                <button class="like-button flex items-center space-x-1.5 text-sm ${isLikedByCurrentUser ? 'text-red-500' : 'text-gray-400'} hover:text-red-500 transition-colors" data-comment-id="${comment.id}">
+                                    <i class="${isLikedByCurrentUser ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                                    <span>${likedByCount}</span>
+                                </button>
+                                ${adminDeleteButtonHTML}
+                            </div>
+                        </div>
+                        <div class="relative w-full">
+                            <div class="bg-gray-100 text-gray-800 p-3 rounded-lg rounded-tl-sm shadow-sm inline-block max-w-full">
+                                <p class="whitespace-pre-wrap break-words">${escapeHTML(comment.text)}</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center mt-3">
-                        <button class="like-button flex items-center space-x-1.5 text-sm ${isLikedByCurrentUser ? 'text-blue-600 font-semibold' : 'text-gray-500'} hover:text-blue-600 transition-colors" data-comment-id="${comment.id}">
-                            <i class="${isLikedByCurrentUser ? 'fa-solid' : 'fa-regular'} fa-thumbs-up"></i>
-                            <span>${likedByCount}</span>
-                        </button>
-                        <div class="text-xs text-gray-400">${date}</div>
-                    </div>`;
+                `;
+                
                 commentsContainer.appendChild(commentElement);
                 commentElement.querySelector('.like-button').onclick = () => likeComment(comment.id);
 
                 if (isUserInAdminMode) {
+                    const authorSpan = commentElement.querySelector('.comment-author');
                     let tooltipElement;
-                    commentElement.style.cursor = 'help';
-                    commentElement.addEventListener('mouseenter', (e) => {
+                    authorSpan.style.cursor = 'help';
+                    authorSpan.addEventListener('mouseenter', (e) => {
                         tooltipElement = document.createElement('div');
                         tooltipElement.className = 'admin-tooltip';
                         tooltipElement.textContent = authorInfo;
@@ -267,19 +289,18 @@
                         tooltipElement.style.left = `${e.clientX + 10}px`;
                         tooltipElement.style.top = `${e.clientY - 30}px`;
                     });
-                     commentElement.addEventListener('mousemove', (e) => {
+                     authorSpan.addEventListener('mousemove', (e) => {
                         if (tooltipElement) {
                             tooltipElement.style.left = `${e.clientX + 10}px`;
                             tooltipElement.style.top = `${e.clientY - 30}px`;
                         }
                     });
-                    commentElement.addEventListener('mouseleave', () => tooltipElement?.remove());
-                    const deleteButton = document.createElement('button');
-                    deleteButton.innerHTML = `<i class="fa-solid fa-trash-can"></i>`;
-                    deleteButton.className = 'absolute top-3 right-3 text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded-md transition-colors';
-                    deleteButton.title = '댓글 삭제';
-                    deleteButton.onclick = () => deleteCommentForAdmin(comment.id);
-                    commentElement.querySelector('.flex.items-start.justify-between').appendChild(deleteButton);
+                    authorSpan.addEventListener('mouseleave', () => tooltipElement?.remove());
+                    
+                    const deleteButton = commentElement.querySelector('.delete-button');
+                    if (deleteButton) {
+                        deleteButton.onclick = () => deleteCommentForAdmin(comment.id);
+                    }
                 }
             });
         };
@@ -294,7 +315,7 @@
 
         async function toggleVisibility() {
             const docSnapshot = await getDoc(settingsDoc);
-            const currentVisibility = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : false; // 기본값을 false(숨김)로 변경
+            const currentVisibility = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : false; 
             await setDoc(settingsDoc, { isRecordVisible: !currentVisibility });
         }
 
@@ -356,7 +377,6 @@
                 if(isUserInAdminMode) {
                     const visibilityToggle = document.getElementById('visibility-toggle');
                     if (visibilityToggle) {
-                        // isRecordVisible가 true일 때(보이는 상태) 토글이 꺼져야 하므로(숨기기 비활성화), 반대로 설정
                         visibilityToggle.checked = !isRecordVisible;
                     }
                 }
