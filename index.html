@@ -37,10 +37,11 @@
 
     <div id="app-container">
         <div id="app" class="p-4 sm:p-6 max-w-lg mx-auto">
+            <!-- 수정된 부분: 관리자 메뉴 스타일 변경 -->
             <div id="admin-controls" class="hidden mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
                 <span class="font-semibold text-gray-700 text-sm">관리자 모드</span>
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2 text-sm">
+                <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-2 text-xs">
                         <span class="font-medium text-gray-600">댓글 숨기기</span>
                         <label for="visibility-toggle" class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="visibility-toggle" class="sr-only peer">
@@ -48,12 +49,11 @@
                         </label>
                         <span class="font-medium text-gray-600">댓글 보이기</span>
                     </div>
-                    <button id="export-reset-btn" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-md hover:bg-red-600 transition-colors">데이터 저장(CSV) 및 초기화</button>
+                    <button id="export-reset-btn" class="text-xs bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors">데이터 저장(CSV) 및 초기화</button>
                 </div>
             </div>
 
             <div class="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 pt-4 pb-4 mb-6">
-                <!-- 수정된 부분: 모드 표시기 추가 -->
                 <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글 <span id="mode-indicator" class="text-base align-middle font-medium text-gray-500"></span></h1>
                 <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
                 <form id="comment-form">
@@ -133,7 +133,6 @@
         function updateAdminUI() {
             adminControlsDiv.classList.toggle('hidden', !isUserInAdminMode);
             document.title = isUserInAdminMode ? '댓글 기능[관리자]' : '댓글 기능';
-            // 수정된 부분: 모드 표시기 텍스트 업데이트
             if (modeIndicator) {
                 modeIndicator.textContent = isUserInAdminMode ? '[관리자 모드]' : '[일반 모드]';
             }
