@@ -37,19 +37,17 @@
 
     <div id="app-container">
         <div id="app" class="p-4 sm:p-6 max-w-lg mx-auto">
-            <!-- 수정된 부분: 관리자 메뉴 스타일 변경 -->
             <div id="admin-controls" class="hidden mb-4 p-3 bg-gray-100 rounded-lg space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
                 <span class="font-semibold text-gray-700 text-sm">관리자 모드</span>
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2 text-xs">
                         <span class="font-medium text-gray-600">댓글 숨기기</span>
                         <label for="visibility-toggle" class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="visibility-toggle" class="sr-only peer">
                             <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
-                        <span class="font-medium text-gray-600">댓글 보이기</span>
                     </div>
-                    <button id="export-reset-btn" class="text-xs bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors">데이터 저장(CSV) 및 초기화</button>
+                    <button id="export-reset-btn" class="text-xs bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors whitespace-nowrap">데이터 저장/초기화</button>
                 </div>
             </div>
 
@@ -131,7 +129,15 @@
         const settingsDoc = doc(db, `/artifacts/${appId}/public/data/settings`, 'config');
         
         function updateAdminUI() {
-            adminControlsDiv.classList.toggle('hidden', !isUserInAdminMode);
+            // 수정된 부분: style.display를 직접 제어하여 확실하게 숨김 처리
+            if (isUserInAdminMode) {
+                adminControlsDiv.classList.remove('hidden');
+                adminControlsDiv.style.display = 'flex'; 
+            } else {
+                adminControlsDiv.classList.add('hidden');
+                adminControlsDiv.style.display = 'none';
+            }
+            
             document.title = isUserInAdminMode ? '댓글 기능[관리자]' : '댓글 기능';
             if (modeIndicator) {
                 modeIndicator.textContent = isUserInAdminMode ? '[관리자 모드]' : '[일반 모드]';
@@ -288,7 +294,7 @@
 
         async function toggleVisibility() {
             const docSnapshot = await getDoc(settingsDoc);
-            const currentVisibility = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
+            const currentVisibility = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : false; // 기본값을 false(숨김)로 변경
             await setDoc(settingsDoc, { isRecordVisible: !currentVisibility });
         }
 
@@ -322,6 +328,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             isUserInAdminMode = urlParams.get('admin') === 'true';
             
+            updateAdminUI(); 
+
             zoomInBtn.addEventListener('click', () => {
                 currentScale = Math.min(1.5, currentScale + 0.1); 
                 applyScale();
@@ -331,21 +339,26 @@
                 currentScale = Math.max(0.5, currentScale - 0.1); 
                 applyScale();
             });
-            
-            updateAdminUI();
 
-            const visibilityToggle = document.getElementById('visibility-toggle');
-            if (visibilityToggle) {
-                visibilityToggle.addEventListener('change', toggleVisibility);
+            if (isUserInAdminMode) {
+                const visibilityToggle = document.getElementById('visibility-toggle');
+                if (visibilityToggle) {
+                    visibilityToggle.addEventListener('change', toggleVisibility);
+                }
+                exportResetBtn.addEventListener('click', exportAndReset);
             }
-            exportResetBtn.addEventListener('click', exportAndReset);
 
             onSnapshot(settingsDoc, (docSnapshot) => {
-                const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : true;
+                const isRecordVisible = docSnapshot.exists() ? docSnapshot.data().isRecordVisible : false;
                 const commentsScrollArea = document.getElementById('comments-scroll-area');
                 commentsScrollArea.classList.toggle('hidden', !isUserInAdminMode && !isRecordVisible);
-                if(isUserInAdminMode && visibilityToggle) {
-                    visibilityToggle.checked = isRecordVisible;
+                
+                if(isUserInAdminMode) {
+                    const visibilityToggle = document.getElementById('visibility-toggle');
+                    if (visibilityToggle) {
+                        // isRecordVisible가 true일 때(보이는 상태) 토글이 꺼져야 하므로(숨기기 비활성화), 반대로 설정
+                        visibilityToggle.checked = !isRecordVisible;
+                    }
                 }
             });
 
