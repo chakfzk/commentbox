@@ -53,7 +53,8 @@
 
             <div class="flex flex-row space-x-4">
                 <div class="w-7/12">
-                    <div id="comments-scroll-area" class="h-[65vh] overflow-y-auto p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
+                    <!-- 수정된 부분: 댓글 목록 높이를 h-[80vh]로 변경 -->
+                    <div id="comments-scroll-area" class="h-[80vh] overflow-y-auto p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
                         <div id="comments-container" class="space-y-0">
                             <div id="loading" class="text-center py-4"><p class="text-gray-500">댓글을 불러오는 중...</p></div>
                             <div id="no-comments" class="text-center py-4 hidden"><p class="text-gray-500">아직 댓글이 없습니다.</p></div>
@@ -76,7 +77,8 @@
         </div>
     </div>
     
-    <div class="fixed bottom-5 right-5 space-x-2 flex">
+    <!-- 수정된 부분: 확대/축소 버튼 위치를 top-5 left-5로 변경 -->
+    <div class="fixed top-5 left-5 space-x-2 flex z-20">
         <button id="zoom-out-btn" class="bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" title="축소">
             <i class="fa-solid fa-magnifying-glass-minus"></i>
         </button>
@@ -176,7 +178,6 @@
             return str ? str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) : '';
         }
 
-        // 수정된 부분: 시간 포맷 함수 추가
         function formatTimestamp(timestamp) {
             if (!timestamp) return '';
             const date = timestamp.toDate();
@@ -263,7 +264,7 @@
                 const displayName = comment.randomName || '익명';
                 const likedByCount = comment.likedBy?.length || 0;
                 const isLikedByCurrentUser = comment.likedBy?.includes(currentUserId);
-                const dateString = formatTimestamp(comment.createdAt); // 시간 포맷팅
+                const dateString = formatTimestamp(comment.createdAt);
 
                 const adminDeleteButtonHTML = isUserInAdminMode ? `
                     <button class="delete-button text-xs text-red-500 hover:text-red-700 transition-colors" title="댓글 삭제">
@@ -277,7 +278,6 @@
 
                 commentElement.className = `comment-item flex py-4 border-b border-gray-200 last:border-b-0 ${isOwnComment ? 'justify-end' : 'justify-start'}`;
 
-                // 수정된 부분: 시간 표시를 포함하는 새로운 HTML 구조
                 commentElement.innerHTML = `
                     <div class="flex flex-col w-full">
                         <div class="flex items-center mb-2 ${isOwnComment ? 'justify-end' : 'justify-start'}">
@@ -421,11 +421,8 @@
                 } else {
                     currentUserId = null;
                 }
-                // listenForComments를 onAuthStateChanged 밖에서 호출하여
-                // 로그인 상태와 관계없이 댓글을 렌더링하도록 합니다.
-                // currentUserId가 null이면 '내 댓글' 구분이 안될 뿐입니다.
+                listenForComments();
             });
-            listenForComments(); // 페이지 로드 시 댓글 수신 시작
         });
 
         commentForm.addEventListener('submit', (e) => {
