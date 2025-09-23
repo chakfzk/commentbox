@@ -51,10 +51,7 @@
                 </div>
             </div>
 
-            <!-- 수정된 부분: 반응형 클래스(lg:)를 제거하여 항상 가로 정렬되도록 고정 -->
             <div class="flex flex-row space-x-4">
-
-                <!-- 왼쪽 컬럼: 댓글 목록 -->
                 <div class="w-7/12">
                     <div id="comments-scroll-area" class="h-[65vh] overflow-y-auto p-4 bg-white border border-gray-300 rounded-lg shadow-inner">
                         <div id="comments-container" class="space-y-0">
@@ -63,8 +60,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- 오른쪽 컬럼: 입력 영역 -->
                 <div class="w-5/12">
                     <h1 class="text-2xl font-bold text-gray-900 mb-4">댓글 <span id="mode-indicator" class="text-base align-middle font-medium text-gray-500"></span></h1>
                     <div id="nickname-display" class="hidden mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg text-center"></div>
@@ -77,7 +72,6 @@
                         <button type="submit" id="submit-button" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">댓글 달기</button>
                     </form>
                 </div>
-
             </div>
         </div>
     </div>
@@ -182,6 +176,27 @@
             return str ? str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]) : '';
         }
 
+        // 수정된 부분: 시간 포맷 함수 추가
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '';
+            const date = timestamp.toDate();
+            const now = new Date();
+
+            const isToday = date.getFullYear() === now.getFullYear() &&
+                            date.getMonth() === now.getMonth() &&
+                            date.getDate() === now.getDate();
+
+            if (isToday) {
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${hours}:${minutes}`;
+            } else {
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${month}.${day}`;
+            }
+        }
+
         const addComment = async (studentId, name, text) => {
             if (!studentId.trim() || !name.trim() || !text.trim() || !currentUserId) return;
             const submitButton = document.getElementById('submit-button');
@@ -242,40 +257,56 @@
 
             currentComments.forEach(comment => {
                 const commentElement = document.createElement('div');
-                commentElement.className = 'comment-item py-4 border-b border-gray-200 last:border-b-0';
+                
+                const isOwnComment = currentUserId && comment.authorId === currentUserId;
                 const authorInfo = `${comment.studentId || ''} ${comment.name || ''}`;
                 const displayName = comment.randomName || '익명';
                 const likedByCount = comment.likedBy?.length || 0;
                 const isLikedByCurrentUser = comment.likedBy?.includes(currentUserId);
+                const dateString = formatTimestamp(comment.createdAt); // 시간 포맷팅
 
                 const adminDeleteButtonHTML = isUserInAdminMode ? `
                     <button class="delete-button text-xs text-red-500 hover:text-red-700 transition-colors" title="댓글 삭제">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 ` : '';
+                
+                const likeButtonDisabled = isOwnComment ? 'disabled' : '';
+                const likeButtonClasses = isLikedByCurrentUser ? 'text-red-500' : 'text-gray-400';
+                const likeButtonHover = isOwnComment ? 'cursor-default' : 'hover:text-red-500';
 
+                commentElement.className = `comment-item flex py-4 border-b border-gray-200 last:border-b-0 ${isOwnComment ? 'justify-end' : 'justify-start'}`;
+
+                // 수정된 부분: 시간 표시를 포함하는 새로운 HTML 구조
                 commentElement.innerHTML = `
-                    <div class="flex flex-col items-start">
-                        <div class="flex justify-between items-center w-full mb-2">
-                            <span class="comment-author font-semibold text-gray-800 text-sm">${escapeHTML(displayName)}</span>
-                            <div class="flex items-center space-x-3">
-                                <button class="like-button flex items-center space-x-1.5 text-sm ${isLikedByCurrentUser ? 'text-red-500' : 'text-gray-400'} hover:text-red-500 transition-colors" data-comment-id="${comment.id}">
-                                    <i class="${isLikedByCurrentUser ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-                                    <span>${likedByCount}</span>
-                                </button>
-                                ${adminDeleteButtonHTML}
-                            </div>
+                    <div class="flex flex-col w-full">
+                        <div class="flex items-center mb-2 ${isOwnComment ? 'justify-end' : 'justify-start'}">
+                             <span class="comment-author font-semibold text-gray-800 text-sm">${escapeHTML(displayName)}</span>
                         </div>
-                        <div class="relative w-full">
-                            <div class="bg-gray-100 text-gray-800 p-3 rounded-lg rounded-tl-sm shadow-sm inline-block max-w-full">
+                        <div class="flex items-end space-x-2 ${isOwnComment ? 'flex-row-reverse space-x-reverse' : ''}">
+                            <div class="${isOwnComment ? 'bg-blue-100 rounded-tr-none' : 'bg-gray-100 rounded-tl-none'} text-gray-800 p-3 rounded-lg shadow-sm inline-block max-w-[80%]">
                                 <p class="whitespace-pre-wrap break-words">${escapeHTML(comment.text)}</p>
+                            </div>
+                            <div class="flex flex-col-reverse justify-end items-center space-y-1 space-y-reverse pb-1 whitespace-nowrap">
+                                <span class="text-xs text-gray-400">${dateString}</span>
+                                <div class="flex items-center space-x-2">
+                                    <button class="like-button flex items-center space-x-1 text-sm ${likeButtonClasses} ${likeButtonHover} transition-colors" data-comment-id="${comment.id}" ${likeButtonDisabled}>
+                                        <i class="${isLikedByCurrentUser ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                                        <span>${likedByCount}</span>
+                                    </button>
+                                    ${adminDeleteButtonHTML}
+                                </div>
                             </div>
                         </div>
                     </div>
                 `;
                 
                 commentsContainer.appendChild(commentElement);
-                commentElement.querySelector('.like-button').onclick = () => likeComment(comment.id);
+
+                const likeButton = commentElement.querySelector('.like-button');
+                if (!isOwnComment) {
+                    likeButton.onclick = () => likeComment(comment.id);
+                }
 
                 if (isUserInAdminMode) {
                     const authorSpan = commentElement.querySelector('.comment-author');
@@ -387,12 +418,14 @@
             onAuthStateChanged(auth, user => {
                 if (user) {
                     currentUserId = user.uid;
-                    listenForComments();
                 } else {
                     currentUserId = null;
-                    commentsContainer.innerHTML = '<p class="text-center text-red-500">인증에 실패하여 댓글을 불러올 수 없습니다. 페이지를 새로고침 해주세요.</p>';
                 }
+                // listenForComments를 onAuthStateChanged 밖에서 호출하여
+                // 로그인 상태와 관계없이 댓글을 렌더링하도록 합니다.
+                // currentUserId가 null이면 '내 댓글' 구분이 안될 뿐입니다.
             });
+            listenForComments(); // 페이지 로드 시 댓글 수신 시작
         });
 
         commentForm.addEventListener('submit', (e) => {
